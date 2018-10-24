@@ -33,7 +33,7 @@ PROJECT_NAME = "CreateYandexAccounts"
 import datetime
 
 LOG_DIR = get_project_paths(PROJECT_NAME)[2]
-LOG_FILE = os.path.join(LOG_DIR, "{}_log.txt".format(datetime.datetime.now().strftime("%Y-%m-%d")))
+LOG_FILE = os.path.join(LOG_DIR, "{}_log.txt".format(datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")))
 
 stale_phones = set()
 stale_codes = set()
@@ -53,7 +53,7 @@ def fill_all_phone_urls():
         all_number_elements = firefox.find_elements_by_class_name("numbutton")
         all_phones += [element.text.split(maxsplit=1)[0] for element in all_number_elements]
 
-    firefox.quit()
+    # firefox.quit()
 
 
 
@@ -95,7 +95,7 @@ def check_limit_reached(phone_number_without_plus):
         check_limit_reached(phone_number_without_plus)
 
     # stale_phones.add(phone_number_without_plus)
-    print("Лимит для телефона превышен.")
+    print("Лимит для телефона превышен: " + phone_number_without_plus)
     chrome.quit()
 
     return True
@@ -109,20 +109,20 @@ def send_all_codes_to_stale(sms_texts):
 
 
 def get_confirmation_code(phone_number_without_plus):
-    firefox = get_firefox_with_profile()
+    # firefox = get_firefox_with_profile()
     firefox.get("https://smsreceivefree.com/info/{}/".format(phone_number_without_plus))
 
     try:
         element_with_code = WebDriverWait(firefox, EXPLICIT_WAIT_PERIOD).until(
             EC.presence_of_element_located((By.XPATH, "//*[contains(text(), 'подтвержд')]")))
     except TimeoutException:
-        firefox.quit()
+        # firefox.quit()
         return False
 
     received_text = element_with_code.text
 
     confirmation_code = re.search(r"(\d+)", received_text).group(0)
-    firefox.quit()
+    # firefox.quit()
 
     # sleep(2)
 
