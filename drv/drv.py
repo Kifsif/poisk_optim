@@ -1,5 +1,5 @@
 from selenium import webdriver
-from config import FIREFOX_PROFILE, GARBAGE_PROXY_LIST, WAIT_PERIOD, USE_FIREFOX_PROFILE
+from config import FIREFOX_PROFILE, GARBAGE_PROXY_LIST, IMPLISIT_WAIT_PERIOD, USE_FIREFOX_PROFILE, USE_PROXY
 from copy import deepcopy
 from selenium.webdriver import DesiredCapabilities
 from selenium.webdriver import Chrome
@@ -69,18 +69,30 @@ def get_proxy():
 
 chrome_options = webdriver.ChromeOptions()
 
-def get_chrome():
-    a_proxy = get_proxy()
+
+
+def get_chrome(a_proxy=None):
+    """
+    Получить вебдрайвер Хром.
+
+    :param a_proxy: Иногда удобно использовать этот параметр. Например, при проверке прокси.
+    :return:
+    """
+    if USE_PROXY and (a_proxy == None):
+        # Если параметр a_proxy не задан, но надо использовать прокси, то получим прокси.
+        a_proxy = get_proxy()
+
     desired_capabilities = DesiredCapabilities.CHROME.copy()
-    desired_capabilities["proxy"] = {'proxyType': 'MANUAL',
-     'httpProxy': a_proxy, 'autodetect': False,
-     'User-Agent': 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:61.0) Gecko/20100101 Firefox/61.0'}
+
+    if a_proxy:
+        desired_capabilities["proxy"] = {'proxyType': 'MANUAL',
+                                         'httpProxy': a_proxy, 'autodetect': False}
+
     chrome_options.add_argument('--proxy-server={}'.format(a_proxy))
     driver = Chrome(desired_capabilities=desired_capabilities)
-    driver.implicitly_wait(WAIT_PERIOD)
+    driver.implicitly_wait(IMPLISIT_WAIT_PERIOD)
 
     return driver
-
 
 
 

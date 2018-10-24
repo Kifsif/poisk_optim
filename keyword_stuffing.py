@@ -1,7 +1,7 @@
 """
 Сначала войти в Firefox с профилем firefox -p, залогиниться в Арсенкина.
 """
-
+from selenium.common.exceptions import TimeoutException, UnexpectedAlertPresentException, StaleElementReferenceException
 from general.general import get_region_name, write_phrase_to_log, \
     get_full_path_to_project_dir, get_project_paths, clear_files, \
     get_list
@@ -13,10 +13,12 @@ from selenium.webdriver.common.keys import Keys
 
 from drv.drv import get_firefox_with_profile
 from selenium.webdriver.support.ui import Select
+import datetime
+from time import strftime
 
 ####
-REGION = '213' # Строкой
-SITE = "https://ritm-it.ru"
+REGION = '213' # Строкой. https://tech.yandex.ru/xml/doc/dg/reference/regions-docpage/
+SITE = "http://www.ritm-it.ru/"
 
 
 ARSENKIN_TOOL_URL = "https://arsenkin.ru/tools/filter/"
@@ -24,8 +26,9 @@ SIZE_OF_CHUNK = 10
 PROJECT_NAME = "KeywordStuffing"
 INIT_DIR = get_project_paths(PROJECT_NAME)[1]
 LOG_DIR = get_project_paths(PROJECT_NAME)[2]
-LOG_FILE = os.path.join(LOG_DIR, "{}_{}.html".format(get_region_name(REGION)[0],
-                                                    get_region_name(REGION)[1]))
+LOG_FILE = os.path.join(LOG_DIR, "{}_{}_{}.html".format(get_region_name(REGION)[0],
+                                                        get_region_name(REGION)[1],
+                                                        datetime.datetime.now().strftime("%Y-%m-%d")))
 def get_phrases():
     pass
 
@@ -46,19 +49,49 @@ def submit_button_click(drv):
 
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.by import By
-from selenium.webdriver.support.ui import WebDriverWait
+# from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support.wait import WebDriverWait
 def get_results(drv):
-    table_element = WebDriverWait(drv, 60).until(EC.presence_of_element_located((By.TAG_NAME, "tbody")))
-    table_html = table_element.get_attribute("innerHTML")
+    try:
+        table_element = WebDriverWait(drv, 60).until(EC.presence_of_element_located((By.TAG_NAME, "tbody")))
+    except TimeoutException as e:
+        raise TimeoutException(e.message)
+    except UnexpectedAlertPresentException:
+        raise UnexpectedAlertPresentException("Возможная причина - исчерпание лимиты у Арсенкина")
+
+    try:
+        table_html = table_element.get_attribute("innerHTML")
+    except StaleElementReferenceException:
+        raise StaleElementReferenceException("StaleElementReferenceException")
+
     write_phrase_to_log(table_html, "a", WRITE_ENCODING, LOG_FILE)
 
 def handle_chunks(drv, phrases):
     chunks = list(get_chunks_generator(phrases))
+
+
+
     for chunk in chunks:
         textarea = fill_phrases(drv, chunk)
-        submit_button_click(drv)
-        get_results(drv)
+
+        successful = False
+        while not successful:
+            submit_button_click(drv)
+            try:
+                get_results(drv)
+            except TimeoutException as e:
+                print(e)
+                continue # Repeat Submit button click. We skip this iteration, and "successful = False".
+            except StaleElementReferenceException as e:
+                print(e)
+                continue # Repeat Submit button click. We skip this iteration, and "successful = False".
+
+            successful = True
+
+
         textarea.clear()
+
+import time
 
 def init_arsenkin_tool(drv):
     """
@@ -66,8 +99,18 @@ def init_arsenkin_tool(drv):
     """
 
     drv.get(ARSENKIN_TOOL_URL)
-    url = drv.find_element_by_name("url")
-    url.send_keys(SITE)
+    url_element = drv.find_element_by_name("url")
+    url_element.send_keys(SITE)
+
+    region_element = WebDriverWait(drv, 10).until(EC.element_to_be_clickable((By.XPATH, "//select[@name='city']")))
+
+    # Классы при просмотре через Inspect element и view page source отличаются.
+    # Inspect element показывает, что прсутствует некий класс select2-hidden-accessible.
+    # Удалим его. И select сразу станет видимым.
+    drv.execute_script('arguments[0].classList.remove("select2-hidden-accessible");', region_element)
+
+    region_element = Select(region_element)
+    region_element.select_by_value(REGION)
 
 
 def write_log_header():

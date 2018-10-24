@@ -6,6 +6,9 @@ def get_region_name(region_number):
     """По номеру региона Яндекса вернуть кортеж (регион: название региона).
     Например, (223: Москва).
 
+    https://tech.yandex.ru/xml/doc/dg/reference/regions-docpage/
+
+
     :param region_number: int
     :return: tuple
     """
