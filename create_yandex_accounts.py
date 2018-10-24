@@ -8,7 +8,7 @@ firefox -p
 
 
 
-
+from selenium.webdriver import ActionChains
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver import Firefox
 from selenium.webdriver.common.keys import Keys
@@ -19,13 +19,21 @@ from random import choice
 import string
 from uuid import uuid4
 from time import sleep
-from config import EXPLICIT_WAIT_PERIOD
+from config import EXPLICIT_WAIT_PERIOD, WRITE_ENCODING
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
 from urllib3.exceptions import MaxRetryError
 import re
+from general.general import get_project_paths, write_phrase_to_log
+import os
+
+PROJECT_NAME = "CreateYandexAccounts"
+import datetime
+
+LOG_DIR = get_project_paths(PROJECT_NAME)[2]
+LOG_FILE = os.path.join(LOG_DIR, "{}_log.txt".format(datetime.datetime.now().strftime("%Y-%m-%d")))
 
 stale_phones = set()
 stale_codes = set()
@@ -44,6 +52,8 @@ def fill_all_phone_urls():
         firefox.get(url_pattern.format(country))
         all_number_elements = firefox.find_elements_by_class_name("numbutton")
         all_phones += [element.text.split(maxsplit=1)[0] for element in all_number_elements]
+
+    firefox.quit()
 
 
 
@@ -85,7 +95,7 @@ def check_limit_reached(phone_number_without_plus):
         check_limit_reached(phone_number_without_plus)
 
     # stale_phones.add(phone_number_without_plus)
-
+    print("Лимит для телефона превышен.")
     chrome.quit()
 
     return True
@@ -99,76 +109,64 @@ def send_all_codes_to_stale(sms_texts):
 
 
 def get_confirmation_code(phone_number_without_plus):
+    firefox = get_firefox_with_profile()
     firefox.get("https://smsreceivefree.com/info/{}/".format(phone_number_without_plus))
 
     try:
         element_with_code = WebDriverWait(firefox, EXPLICIT_WAIT_PERIOD).until(
             EC.presence_of_element_located((By.XPATH, "//*[contains(text(), 'подтвержд')]")))
     except TimeoutException:
-        return False
         firefox.quit()
+        return False
 
     received_text = element_with_code.text
 
     confirmation_code = re.search(r"(\d+)", received_text).group(0)
+    firefox.quit()
 
     # sleep(2)
 
 
     return confirmation_code
 
-# def check_limit():
-#     try:
-#         check_limit_reached(chrome, firefox, phone_number_without_plus)
-#     except PnoneLimitExceededException:
-#         return False
-#
-#     phone_url = 'https://smsreceivefree.com/info/{}/'
-#     firefox.get(phone_url.format(phone_number_without_plus))
-#
-#     probable_code = sms_texts[0]
-#
-#     global stale_codes
-#
-#
-#     if probable_code in stale_codes:
-#         if counter == 3:
-#             return False
-#
-#         send_all_codes_to_stale(sms_texts)
-#
-#         sleep(3)
-#         counter += 1
-#         try_code(chrome, firefox, phone_number_without_plus, counter)
-#
-#     else:
-#         stale_codes.add(probable_code)
-#
-#     phone_code_element = chrome.find_element_by_id("phoneCode")
-#     phone_code_element.send_keys(probable_code)
-#
-#     buttons = chrome.find_elements_by_tag_name("button")
-#     confirm_button = buttons[1]
-#     confirm_button.click()
-#     sleep(4)
-#
-#     try:
-#         elements_with_code = firefox.find_elements_by_xpath("//*[contains(text(), 'неправильн')]") # Сообщение "Неправильный код, попробуйте ещё раз"
-#     except NoSuchElementException:
-#         pass
-#     register_button = buttons[2]
-#     register_button.click()
+def get_code_button():
+    try:
+        get_text_button = chrome.find_element_by_xpath("//*[@id='root']/div/div[2]/div/main/div/div/div/form/div[3]/div/div[2]/div/div/button")
+    except NoSuchElementException:
+        pass
+    return get_text_button
+
 
 def try_code(confirmation_code):
     input_confirmation_code_element = chrome.find_element_by_id("phoneCode")
     input_confirmation_code_element.send_keys(confirmation_code)
+    sleep(1)
 
-    from selenium.webdriver import ActionChains
+
+    try:
+        confirm_button = chrome.find_element_by_xpath("//*[@id='root']/div/div[2]/div/main/div/div/div/form/div[3]/div/div[2]/div/div[2]/div[2]/button")
+    except NoSuchElementException:
+        pass # Ничего не делаем. Так и должно быть.
+
+    try:
+        confirm_button.click()
+    except UnboundLocalError:
+        pass  # Ничего не делаем. Так и должно быть.
+
+
     actions = ActionChains(chrome)
-    register_button= chrome.find_element_by_xpath('//*[@id="root"]/div/div[2]/div/main/div/div/div/form/div[4]/button')
+
+    register_button=chrome.find_element_by_xpath('//*[@id="root"]/div/div[2]/div/main/div/div/div/form/div[4]/button')
     actions.move_to_element(register_button).click().perform();
-    # register_button.click()
+
+    # Проверим, что, действительно, перешли на страницу управления созданным аккаунтом.
+    try:
+        acc_management_link = chrome.find_element_by_link_text("Управление аккаунтом")
+    except NoSuchElementException:
+        return False
+
     return True
+
 
 
 
@@ -208,11 +206,13 @@ def open_yandex_to_register_acc():
 
         phone_number_without_plus = phone_number[1:]
 
-        firefox = get_firefox_with_profile()
+        # firefox = get_firefox_with_profile()
 
 
         buttons = chrome.find_elements_by_tag_name('button')
-        button_get_code = buttons[1] # Кнопка "Получить код"
+        # button_get_code = buttons[1] # Кнопка "Получить код"
+        button_get_code = get_code_button()
+
         button_get_code.click()
 
         limit_for_phone_reached = check_limit_reached(phone_number_without_plus)
@@ -227,9 +227,11 @@ def open_yandex_to_register_acc():
         success = try_code(confirmation_code)
 
         if not success:
+            chrome.quit()
             continue
 
         print("Success: {}".format(login))
+        write_phrase_to_log(login, "a", WRITE_ENCODING, LOG_FILE)
         chrome.quit()
 
 

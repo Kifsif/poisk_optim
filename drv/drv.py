@@ -16,26 +16,13 @@ def get_firefox_with_profile():
 
     if USE_FIREFOX_PROFILE:
         firefox_profile = webdriver.FirefoxProfile(FIREFOX_PROFILE)
+        firefox_profile.set_preference("permissions.default.image", 2)
+        firefox_profile.set_preference("dom.ipc.plugins.enabled.libflashplayer.so", "false")
 
     # firefox_profile.set_preference('permissions.default.image', 2) # Without images.
     # firefox_profile.set_preference('dom.ipc.plugins.enabled.libflashplayer.so', False) # Without flash.
 
     return webdriver.Firefox(firefox_profile)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
 tmp_proxy_list = []
 

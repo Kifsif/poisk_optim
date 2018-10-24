@@ -120,7 +120,7 @@ def get_project_paths(project_name):
     :param project_name:
     :return: project_dir, init_dir, log_dir, log_file
     """
-    project_dir = os.path.join(get_full_path_to_project_dir("KeywordStuffing"))
+    project_dir = os.path.join(get_full_path_to_project_dir(project_name))
     init_dir = os.path.join(project_dir, "init")
     log_dir = os.path.join(project_dir, "log")
     log_file = os.path.join(project_dir, project_name)
