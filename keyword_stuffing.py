@@ -17,8 +17,8 @@ import datetime
 from time import strftime
 
 ####
-REGION = '213' # Строкой. https://tech.yandex.ru/xml/doc/dg/reference/regions-docpage/
-SITE = "http://www.ritm-it.ru/"
+REGION = '2' # Строкой. https://tech.yandex.ru/xml/doc/dg/reference/regions-docpage/
+SITE = "oknamassiv.ru"
 
 
 ARSENKIN_TOOL_URL = "https://arsenkin.ru/tools/filter/"
@@ -26,9 +26,10 @@ SIZE_OF_CHUNK = 10
 PROJECT_NAME = "KeywordStuffing"
 INIT_DIR = get_project_paths(PROJECT_NAME)[1]
 LOG_DIR = get_project_paths(PROJECT_NAME)[2]
-LOG_FILE = os.path.join(LOG_DIR, "{}_{}_{}.html".format(get_region_name(REGION)[0],
-                                                        get_region_name(REGION)[1],
-                                                        datetime.datetime.now().strftime("%Y-%m-%d")))
+LOG_FILE = os.path.join(LOG_DIR, "{}_{}_{}_{}.html".format(SITE,
+                                                           get_region_name(REGION)[0],
+                                                           get_region_name(REGION)[1],
+                                                           datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")))
 def get_phrases():
     pass
 
@@ -52,11 +53,13 @@ from selenium.webdriver.common.by import By
 # from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support.wait import WebDriverWait
 def get_results(drv):
+
     try:
         table_element = WebDriverWait(drv, 60).until(EC.presence_of_element_located((By.TAG_NAME, "tbody")))
+        drv.find_element_by_xpath("//th[text()='Релевантный URL в выдаче по запросу']") # Проверяем, что данные, действительно, выведены. Одной проверки наличия таблицы недостаточно - будут пропуски ключей.
     except TimeoutException as e:
-        raise TimeoutException(e.message)
-    except UnexpectedAlertPresentException:
+        raise TimeoutException('Timeout exception')
+    except UnexpectedAlertPresentException as e:
         raise UnexpectedAlertPresentException("Возможная причина - исчерпание лимиты у Арсенкина")
 
     try:
@@ -136,7 +139,6 @@ def parse_all(phrases):
     drv.quit()
 
 def keyword_stuffing():
-    clear_files(LOG_DIR)
     phrases = get_list(os.path.join(INIT_DIR, "init.txt"), READ_ENCODING)
     parse_all(phrases)
 

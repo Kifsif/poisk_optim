@@ -28,6 +28,7 @@ from urllib3.exceptions import MaxRetryError
 import re
 from general.general import get_project_paths, write_phrase_to_log
 import os
+from selenium.common.exceptions import WebDriverException
 
 PROJECT_NAME = "CreateYandexAccounts"
 import datetime
@@ -50,7 +51,13 @@ def fill_all_phone_urls():
 
     for country in ["canada", "usa", ]:
         firefox.get(url_pattern.format(country))
+
+
         all_number_elements = firefox.find_elements_by_class_name("numbutton")
+
+        if not all_number_elements:
+            raise Exception("Вы точно заходили в Firefox через профиль и прошли капчу?")
+
         all_phones += [element.text.split(maxsplit=1)[0] for element in all_number_elements]
 
     # firefox.quit()
@@ -82,8 +89,6 @@ class PnoneLimitExceededException(Exception):
 
 
 def check_limit_reached(phone_number_without_plus):
-    # global stale_phones
-    global all_phones
     try:
         elements_with_code = WebDriverWait(chrome, EXPLICIT_WAIT_PERIOD).until(
            EC.presence_of_element_located((By.CLASS_NAME,"error-message")))  # Превышен лимит отправляемых сообщений, попробуйте позже.
@@ -101,6 +106,15 @@ def check_limit_reached(phone_number_without_plus):
     return True
 
 
+def after_code_input_check_limit_reached(phone_number_without_plus):
+    try:
+        limit_reached_element = chrome.find_element_by_class_name("global__error")
+        print("Лимит для телефона превышен: " + phone_number_without_plus)
+    except NoSuchElementException:
+        return False
+
+    chrome.quit()
+    return True
 
 def send_all_codes_to_stale(sms_texts):
     global stale_codes
@@ -201,6 +215,10 @@ def open_yandex_to_register_acc():
         phone_element = chrome.find_element_by_id("phone")
 
         phone_number = current_phone or all_phones.pop()
+
+        if not current_phone:
+            current_phone = phone_number
+
         phone_element.send_keys(phone_number)
 
 
@@ -209,7 +227,7 @@ def open_yandex_to_register_acc():
         # firefox = get_firefox_with_profile()
 
 
-        buttons = chrome.find_elements_by_tag_name('button')
+        # buttons = chrome.find_elements_by_tag_name('button')
         # button_get_code = buttons[1] # Кнопка "Получить код"
         button_get_code = get_code_button()
 
@@ -219,15 +237,20 @@ def open_yandex_to_register_acc():
 
         if limit_for_phone_reached:
             current_phone = None # Больше не использовать текущий телефонный номер.
-            chrome.quit()
+            phone_number = None
             continue
 
         confirmation_code = get_confirmation_code(phone_number_without_plus)
 
+        if not confirmation_code:
+            raise Exception("Не получен код подтверждения. Вы точно в Firefox заходили через профиль и прошли капчу?")
+
         success = try_code(confirmation_code)
 
         if not success:
-            chrome.quit()
+            limit_for_phone_reached = after_code_input_check_limit_reached(phone_number_without_plus)
+            current_phone = None  # Больше не использовать текущий телефонный номер.
+            phone_number = None
             continue
 
         print("Success: {}".format(login))
