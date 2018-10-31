@@ -5,7 +5,7 @@ from selenium.common.exceptions import TimeoutException, UnexpectedAlertPresentE
 from general.general import get_region_name, write_phrase_to_log, \
     get_full_path_to_project_dir, get_project_paths, clear_files, \
     get_list
-
+from selenium.common.exceptions import NoSuchElementException
 from config import WRITE_ENCODING, READ_ENCODING
 import os
 from time import sleep
@@ -15,10 +15,11 @@ from drv.drv import get_firefox_with_profile
 from selenium.webdriver.support.ui import Select
 import datetime
 from time import strftime
+from itertools import chain
 
 ####
-REGION = '2' # Строкой. https://tech.yandex.ru/xml/doc/dg/reference/regions-docpage/
-SITE = "oknamassiv.ru"
+REGION = ""
+SITE = ""
 
 
 ARSENKIN_TOOL_URL = "https://arsenkin.ru/tools/filter/"
@@ -26,12 +27,7 @@ SIZE_OF_CHUNK = 10
 PROJECT_NAME = "KeywordStuffing"
 INIT_DIR = get_project_paths(PROJECT_NAME)[1]
 LOG_DIR = get_project_paths(PROJECT_NAME)[2]
-LOG_FILE = os.path.join(LOG_DIR, "{}_{}_{}_{}.html".format(SITE,
-                                                           get_region_name(REGION)[0],
-                                                           get_region_name(REGION)[1],
-                                                           datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")))
-def get_phrases():
-    pass
+LOG_FILE = ""
 
 
 def get_chunks_generator(phrases):
@@ -60,7 +56,7 @@ def get_results(drv):
     except TimeoutException as e:
         raise TimeoutException('Timeout exception')
     except UnexpectedAlertPresentException as e:
-        raise UnexpectedAlertPresentException("Возможная причина - исчерпание лимиты у Арсенкина")
+        raise UnexpectedAlertPresentException("Возможная причина - исчерпание лимиты у Арсенкина") # Это исключение мы нигде более не ловим. Просто сообщаем причину.
 
     try:
         table_html = table_element.get_attribute("innerHTML")
@@ -69,15 +65,18 @@ def get_results(drv):
 
     write_phrase_to_log(table_html, "a", WRITE_ENCODING, LOG_FILE)
 
+
 def handle_chunks(drv, phrases):
     chunks = list(get_chunks_generator(phrases))
 
 
-
-    for chunk in chunks:
+    chunk_counter = 0 # Нужен только для отладки.
+    while chunks:
+        chunk = chunks.pop()
         textarea = fill_phrases(drv, chunk)
 
         successful = False
+        write_phrase_to_log('<tr><th>{}</th></tr>'.format(chunk_counter), "a", WRITE_ENCODING, LOG_FILE)
         while not successful:
             submit_button_click(drv)
             try:
@@ -88,11 +87,28 @@ def handle_chunks(drv, phrases):
             except StaleElementReferenceException as e:
                 print(e)
                 continue # Repeat Submit button click. We skip this iteration, and "successful = False".
+            except UnexpectedAlertPresentException as e:
+                # Кончились лимиты. Запишем недопарсенное в файл.
+                chunks.append(chunk)
+                tmp_chunks = list(chain(*chunks))
+                chunks_as_str = "\n".join(tmp_chunks)
+                remainder = os.path.join(LOG_DIR, "future.txt")
+                write_phrase_to_log(chunks_as_str, "w", WRITE_ENCODING, remainder)
+                drv.quit()
+                quit()
 
             successful = True
 
+        chunk_counter += 1
 
-        textarea.clear()
+        try:
+            textarea.clear()
+        except NoSuchElementException as e: # Один раз такое исключение встретилось. Если еще раз встретится, попробовать отдебажить.
+            textarea = fill_phrases(drv, chunk)
+            textarea.clear()
+            print(e)
+
+    print("Counter {}".format(chunk_counter))
 
 import time
 
@@ -138,7 +154,31 @@ def parse_all(phrases):
     write_log_footer()
     drv.quit()
 
+def init(content_of_init_file):
+    """
+    Задать регион и сайт
+    """
+    global REGION
+    global SITE
+    global LOG_FILE
+
+    SITE = content_of_init_file[0]
+
+    assert ".ru" in SITE
+
+    REGION = content_of_init_file[1]
+
+    assert REGION.isdigit()
+
+    LOG_FILE = os.path.join(LOG_DIR, "{}_{}_{}_{}.html".format(datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S"),
+                                                               SITE,
+                                                               get_region_name(REGION)[0],
+                                                               get_region_name(REGION)[1]))
+
+
 def keyword_stuffing():
-    phrases = get_list(os.path.join(INIT_DIR, "init.txt"), READ_ENCODING)
+    content_of_init_file = get_list(os.path.join(INIT_DIR, "init.txt"), READ_ENCODING)
+    init(content_of_init_file)
+    phrases = content_of_init_file[2:]
     parse_all(phrases)
 
