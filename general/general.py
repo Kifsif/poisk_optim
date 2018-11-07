@@ -1,5 +1,6 @@
 import os
 import shutil
+import collections
 
 def get_region_name(region_number):
 
@@ -143,6 +144,13 @@ def clear_files(a_dir):
     os.makedirs(a_dir)
 
 
+def alert_duplicates(elements):
+    duplicates = [element for element, count in collections.Counter(elements).items() if count > 1]
+    if duplicates:
+        str_duplicates = "\n".join(duplicates)
+        raise Exception("Дубли: \n{}".format(str_duplicates))
+
+
 def get_list(full_path_to_file, encoding):
     """
     Прочитать содержимое файла. Вернуть список.
@@ -156,5 +164,5 @@ def get_list(full_path_to_file, encoding):
             elements = f.read().splitlines()
     except FileNotFoundError:
         return []
-
+    alert_duplicates(elements)
     return elements

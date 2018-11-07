@@ -52,18 +52,25 @@ def get_results(drv):
 
     try:
         table_element = WebDriverWait(drv, 60).until(EC.presence_of_element_located((By.TAG_NAME, "tbody")))
-        drv.find_element_by_xpath("//th[text()='Релевантный URL в выдаче по запросу']") # Проверяем, что данные, действительно, выведены. Одной проверки наличия таблицы недостаточно - будут пропуски ключей.
     except TimeoutException as e:
         raise TimeoutException('Timeout exception')
     except UnexpectedAlertPresentException as e:
         raise UnexpectedAlertPresentException("Возможная причина - исчерпание лимиты у Арсенкина") # Это исключение мы нигде более не ловим. Просто сообщаем причину.
+
+    sleep(2) # Следующий блок вызывал исключение. Т.е. таблица, вроде, есть, а элент th  в ней отсутствует. Поэтому добавлен слип.
+
+    try:
+        drv.find_element_by_xpath(
+            "//th[text()='Релевантный URL в выдаче по запросу']")  # Проверяем, что данные, действительно, выведены. Одной проверки наличия таблицы недостаточно - будут пропуски ключей.
+    except NoSuchElementException as e:
+        raise NoSuchElementException(str(e))
 
     try:
         table_html = table_element.get_attribute("innerHTML")
     except StaleElementReferenceException:
         raise StaleElementReferenceException("StaleElementReferenceException")
 
-    write_phrase_to_log(table_html, "a", WRITE_ENCODING, LOG_FILE)
+    return table_html
 
 
 def handle_chunks(drv, phrases):
@@ -72,7 +79,7 @@ def handle_chunks(drv, phrases):
 
     chunk_counter = 0 # Нужен только для отладки.
     while chunks:
-        chunk = chunks.pop()
+        chunk = chunks.pop(0)
         textarea = fill_phrases(drv, chunk)
 
         successful = False
@@ -80,7 +87,7 @@ def handle_chunks(drv, phrases):
         while not successful:
             submit_button_click(drv)
             try:
-                get_results(drv)
+                table_html = get_results(drv)
             except TimeoutException as e:
                 print(e)
                 continue # Repeat Submit button click. We skip this iteration, and "successful = False".
@@ -96,7 +103,11 @@ def handle_chunks(drv, phrases):
                 write_phrase_to_log(chunks_as_str, "w", WRITE_ENCODING, remainder)
                 drv.quit()
                 quit()
+            except NoSuchElementException as e:
+                print(e)
+                continue
 
+            write_phrase_to_log(table_html, "a", WRITE_ENCODING, LOG_FILE)
             successful = True
 
         chunk_counter += 1
@@ -104,7 +115,7 @@ def handle_chunks(drv, phrases):
         try:
             textarea.clear()
         except NoSuchElementException as e: # Один раз такое исключение встретилось. Если еще раз встретится, попробовать отдебажить.
-            textarea = fill_phrases(drv, chunk)
+            textarea = drv.find_element_by_tag_name("textarea")
             textarea.clear()
             print(e)
 

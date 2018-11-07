@@ -55,10 +55,13 @@ def fill_all_phone_urls():
         firefox.get(url_pattern.format(country))
 
 
+
         all_number_elements = firefox.find_elements_by_class_name("numbutton")
 
         if not all_number_elements:
-            raise Exception("Вы точно заходили в Firefox через профиль и прошли капчу?")
+            raise Exception("Вы точно прошли капчу?")
+
+
 
         all_phones += [element.text.split(maxsplit=1)[0] for element in all_number_elements]
 
@@ -126,7 +129,11 @@ def send_all_codes_to_stale(sms_texts):
 
 def get_confirmation_code(phone_number_without_plus):
     # firefox = get_firefox_with_profile()
-    firefox.get("https://smsreceivefree.com/info/{}/".format(phone_number_without_plus))
+    try:
+        firefox.get("https://smsreceivefree.com/info/{}/".format(phone_number_without_plus))
+    except WebDriverException as e:
+        print(e)
+        get_confirmation_code(phone_number_without_plus)
 
     try:
         element_with_code = WebDriverWait(firefox, EXPLICIT_WAIT_PERIOD).until(
@@ -233,7 +240,15 @@ def open_yandex_to_register_acc():
         # button_get_code = buttons[1] # Кнопка "Получить код"
         button_get_code = get_code_button()
 
-        button_get_code.click()
+        try:
+            button_get_code.click()
+        except WebDriverException as e:
+            # Выскочило selenium.common.exceptions.WebDriverException: Message: unknown error: Element <button class="button2 button2_size_m button2_theme_normal button2_width_max" type="button" autocomplete="off" aria-pressed="false">...</button> is not clickable at point (753, 528). Other element would receive the click: <input type="tel" class="textinput__control" id="phone" name="phone" value="+12495016287">
+            # Попробуем еще раз.
+            print(e)
+            button_get_code = get_code_button()
+            button_get_code.click()
+
 
         limit_for_phone_reached = check_limit_reached(phone_number_without_plus)
 
@@ -245,7 +260,10 @@ def open_yandex_to_register_acc():
         confirmation_code = get_confirmation_code(phone_number_without_plus)
 
         if not confirmation_code:
-            raise Exception("Не получен код подтверждения. Вы точно в Firefox заходили через профиль и прошли капчу?")
+            pass # Вероятно, не пройдена капча. Надо остановить программу, пройти капчу.
+                 # Т.е. здесь обязательно должна быть точка останова.
+            confirmation_code = get_confirmation_code(phone_number_without_plus)
+
 
         success = try_code(confirmation_code)
 

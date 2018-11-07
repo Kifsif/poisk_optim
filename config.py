@@ -5,11 +5,8 @@ WRITE_ENCODING = 'utf-8'
 
 ##################
 # Selenium drivers
-IMPLISIT_WAIT_PERIOD = 10 # секунд.
-EXPLICIT_WAIT_PERIOD = 10 # секунд.
-
-
-
+IMPLICIT_WAIT_PERIOD = 14 # секунд.
+EXPLICIT_WAIT_PERIOD = 12 # секунд.
 #########################
 # Firefox profile
 
@@ -19,6 +16,7 @@ EXPLICIT_WAIT_PERIOD = 10 # секунд.
 
 USE_FIREFOX_PROFILE = True
 FIREFOX_PROFILE = '/home/michael/.mozilla/firefox/43w7gnt9.parsing' # cd ~/.mozilla/firefox
+FIREFOX_WITH_IMG = False
                                                                     # ls -d $PWD/*
 #########################
 # Yandex Region

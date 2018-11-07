@@ -1,5 +1,5 @@
 from selenium import webdriver
-from config import FIREFOX_PROFILE, GARBAGE_PROXY_LIST, IMPLISIT_WAIT_PERIOD, USE_FIREFOX_PROFILE, USE_PROXY
+from config import FIREFOX_PROFILE, GARBAGE_PROXY_LIST, IMPLICIT_WAIT_PERIOD, USE_FIREFOX_PROFILE, USE_PROXY, FIREFOX_WITH_IMG
 from copy import deepcopy
 from selenium.webdriver import DesiredCapabilities
 from selenium.webdriver import Chrome
@@ -16,7 +16,8 @@ def get_firefox_with_profile():
 
     if USE_FIREFOX_PROFILE:
         firefox_profile = webdriver.FirefoxProfile(FIREFOX_PROFILE)
-        firefox_profile.set_preference("permissions.default.image", 2)
+        if FIREFOX_WITH_IMG:
+            firefox_profile.set_preference("permissions.default.image", 2)
         firefox_profile.set_preference("dom.ipc.plugins.enabled.libflashplayer.so", "false")
 
     # firefox_profile.set_preference('permissions.default.image', 2) # Without images.
@@ -77,7 +78,7 @@ def get_chrome(a_proxy=None):
 
     chrome_options.add_argument('--proxy-server={}'.format(a_proxy))
     driver = Chrome(desired_capabilities=desired_capabilities)
-    driver.implicitly_wait(IMPLISIT_WAIT_PERIOD)
+    driver.implicitly_wait(IMPLICIT_WAIT_PERIOD)
 
     return driver
 
