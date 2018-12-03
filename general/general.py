@@ -1,6 +1,11 @@
 import os
 import shutil
 import collections
+import datetime
+
+def get_current_date_time():
+    current_date_time = datetime.datetime.today().strftime("%Y%m%d%H%M%S")
+    return current_date_time
 
 def get_region_name(region_number):
 
@@ -104,8 +109,10 @@ def write_phrase_to_log(phrase, write_mode, enc, full_path_to_file):
         # Пусть взрывается - дебажить будем в каждом конкретном случае.
         f.write("{}\n".format(phrase))
 
+    pass
 
-def get_full_path_to_project_dir(project_name):
+
+def get_full_path_to_project_dir(project_name=None):
     """
     По названию проекта получить полный путь до каталога c инит-файлами и логом.
     :param project_name:

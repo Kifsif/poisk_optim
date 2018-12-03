@@ -134,6 +134,10 @@ def get_confirmation_code(phone_number_without_plus):
     except WebDriverException as e:
         print(e)
         get_confirmation_code(phone_number_without_plus)
+    except MaxRetryError as e:
+        print("Проверьте, решена ли капча!")
+        print(e)
+        quit()
 
     try:
         element_with_code = WebDriverWait(firefox, EXPLICIT_WAIT_PERIOD).until(
@@ -274,7 +278,7 @@ def open_yandex_to_register_acc():
             continue
 
         print("Success: {}".format(login))
-        write_phrase_to_log(login, "a", WRITE_ENCODING, LOG_FILE)
+        write_phrase_to_log("{};{}".format(login, current_phone), "a", WRITE_ENCODING, LOG_FILE)
         chrome.quit()
 
 

@@ -1,5 +1,5 @@
 from selenium import webdriver
-from config import FIREFOX_PROFILE, GARBAGE_PROXY_LIST, IMPLICIT_WAIT_PERIOD, USE_FIREFOX_PROFILE, USE_PROXY, FIREFOX_WITH_IMG
+from config import FIREFOX_PROFILE, GARBAGE_PROXIES, IMPLICIT_WAIT_PERIOD, USE_FIREFOX_PROFILE, USE_PROXY, FIREFOX_WITH_IMG
 from copy import deepcopy
 from selenium.webdriver import DesiredCapabilities
 from selenium.webdriver import Chrome
@@ -35,7 +35,9 @@ def send_proxy_to_black_set(a_proxy):
     PROXY_BLACK_SET.add(a_proxy)
 
 def get_proxy_list():
-    proxy_list = GARBAGE_PROXY_LIST.split()
+    # Удалим возможные дубли из списка прокси-серверов.
+
+    proxy_list = GARBAGE_PROXIES
     proxy_set = set(proxy_list)
     tmp_proxy_list = list(proxy_set)
     return tmp_proxy_list
